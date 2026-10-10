@@ -460,5 +460,6 @@ def api_toggle_step(step_id):
     return jsonify(ok=True, completed=step.completed)
 
 
-if __name__ == "__main__":
-    app.run(debug=True, use_reloader=False)
+
+    if __name__ == "__main__":
+    app.run(debug=True)
