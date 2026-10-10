@@ -27,28 +27,28 @@ from engine import CareerRecommender
 from models import ProgressStep, User, db
 
 app = Flask(__name__)
-app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-change-me")
-app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
-    "DATABASE_URL", "sqlite:///careerpath.db"
-).replace("postgres://", "postgresql://", 1)
+
+db_url = os.getenv("DATABASE_URL", "sqlite:///careerpath.db")
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+app.config["SQLALCHEMY_DATABASE_URI"] = db_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True, "pool_recycle": 300}
 
 GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-RESET_MAX_AGE = 3600  # reset links expire after 1 hour
+RESET_MAX_AGE = 3600
 
 db.init_app(app)
-with app.app_context():
-    db.create_all()
 
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "login"
 login_manager.login_message = "Please log in to continue."
 
-# ---------- Google sign-in ----------
 oauth = OAuth(app)
 oauth.register(
     name="google",
@@ -72,14 +72,17 @@ def unauthorized():
     return redirect(url_for("login"))
 
 
-print("Training the recommendation model, please wait...")
+with app.app_context():
+    try:
+        db.create_all()
+    except Exception as error:
+        print("Database setup error:", error)
+
 engine = CareerRecommender()
-print("Model ready!")
 
 
 # ---------- Helpers ----------
 def get_ai_advice(name, recommendations, skills, interests):
-    """Ask Groq for short personalized advice. Returns None if anything fails."""
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
         return None
@@ -144,7 +147,6 @@ def _serializer():
 
 
 def make_reset_token(user):
-    # The password hash fragment makes the link work only once.
     return _serializer().dumps(
         {"id": user.id, "h": user.password_hash[-12:]}, salt="password-reset"
     )
@@ -278,7 +280,6 @@ def logout():
     return redirect(url_for("index"))
 
 
-# ---------- Google sign-in routes ----------
 @app.route("/auth/google")
 def google_login():
     if not os.getenv("GOOGLE_CLIENT_ID") or not os.getenv("GOOGLE_CLIENT_SECRET"):
@@ -307,7 +308,7 @@ def google_callback():
     if not user:
         name = info.get("name") or email.split("@")[0]
         user = User(name=name, email=email)
-        user.set_password(secrets.token_urlsafe(32))  # random, unusable password
+        user.set_password(secrets.token_urlsafe(32))
         db.session.add(user)
         db.session.commit()
         flash(f"Welcome, {user.name}! Your account is ready.", "success")
@@ -316,7 +317,6 @@ def google_callback():
     return redirect(url_for("dashboard"))
 
 
-# ---------- Forgot / reset password ----------
 @app.route("/forgot-password", methods=["GET", "POST"])
 def forgot_password():
     if current_user.is_authenticated:
@@ -332,7 +332,6 @@ def forgot_password():
         if user:
             send_reset_email(user)
 
-        # Same message either way, so nobody can check which emails exist.
         flash("If an account exists for that email, we've sent a reset link.", "success")
         return redirect(url_for("login"))
 
@@ -465,4 +464,4 @@ def api_toggle_step(step_id):
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, use_reloader=False)
