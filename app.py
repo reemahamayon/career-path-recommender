@@ -1,5 +1,4 @@
 import os
-from flask import Flask
 import re
 import secrets
 import smtplib
@@ -22,14 +21,19 @@ from flask_login import (
 )
 from groq import Groq
 from itsdangerous import BadSignature, URLSafeTimedSerializer
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from engine import CareerRecommender
 from models import ProgressStep, User, db
 
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-change-me")
-app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///careerpath.db").replace("postgres://", "postgresql://", 1)
+app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
+    "DATABASE_URL", "sqlite:///careerpath.db"
+).replace("postgres://", "postgresql://", 1)
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
 
 GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -67,9 +71,6 @@ def unauthorized():
     flash("Please log in to continue.", "info")
     return redirect(url_for("login"))
 
-
-with app.app_context():
-    db.create_all()
 
 print("Training the recommendation model, please wait...")
 engine = CareerRecommender()
@@ -463,6 +464,5 @@ def api_toggle_step(step_id):
     return jsonify(ok=True, completed=step.completed)
 
 
-
-    if __name__ == "__main__":
+if __name__ == "__main__":
     app.run(debug=True)
