@@ -1,16 +1,9 @@
-import os
-
-# Keep the terminal clean (must be set before importing tensorflow)
-os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
-
+import csv
 import difflib
 import random
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
-import tensorflow as tf
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_PATH = BASE_DIR / "data" / "careers.csv"
@@ -18,7 +11,6 @@ DATA_PATH = BASE_DIR / "data" / "careers.csv"
 SEED = 42
 random.seed(SEED)
 np.random.seed(SEED)
-tf.random.set_seed(SEED)
 
 
 def _split(text):
@@ -28,9 +20,11 @@ def _split(text):
 
 class CareerRecommender:
     def __init__(self, csv_path=DATA_PATH):
-        df = pd.read_csv(csv_path)
+        with open(csv_path, newline="", encoding="utf-8") as f:
+            rows = list(csv.DictReader(f))
+
         self.records = []
-        for row in df.to_dict("records"):
+        for row in rows:
             row["skills_list"] = _split(row["skills"])
             row["interests_list"] = _split(row["interests"])
             row["path_list"] = [step.strip() for step in str(row["learning_path"]).split("|")]
@@ -46,7 +40,7 @@ class CareerRecommender:
         self.vocab = sorted(skill_set | interest_set)
         self.index = {word: i for i, word in enumerate(self.vocab)}
 
-        self.model = self._train()
+        self.params = self._train()
 
     # ---------- Training ----------
     def _make_training_data(self, samples_per_role=300):
@@ -67,24 +61,63 @@ class CareerRecommender:
                     vec[random.randrange(len(self.vocab))] = 1.0
                 X.append(vec)
                 y.append(role_idx)
-        return np.array(X), np.array(y)
+        return np.array(X, dtype="float32"), np.array(y)
 
-    def _train(self):
+    def _train(self, epochs=150, hidden=64, lr=0.01):
+        """A small neural network (one hidden layer) trained with Adam, in pure NumPy."""
         X, y = self._make_training_data()
-        model = tf.keras.Sequential([
-            tf.keras.layers.Input(shape=(len(self.vocab),)),
-            tf.keras.layers.Dense(64, activation="relu"),
-            tf.keras.layers.Dropout(0.2),
-            tf.keras.layers.Dense(32, activation="relu"),
-            tf.keras.layers.Dense(len(self.records), activation="softmax"),
-        ])
-        model.compile(
-            optimizer="adam",
-            loss="sparse_categorical_crossentropy",
-            metrics=["accuracy"],
-        )
-        model.fit(X, y, epochs=15, batch_size=32, verbose=0, validation_split=0.1)
-        return model
+        n, d = X.shape
+        k = len(self.records)
+        rng = np.random.default_rng(SEED)
+
+        p = {
+            "W1": rng.normal(0, np.sqrt(2.0 / d), (d, hidden)).astype("float32"),
+            "b1": np.zeros(hidden, dtype="float32"),
+            "W2": rng.normal(0, np.sqrt(2.0 / hidden), (hidden, k)).astype("float32"),
+            "b2": np.zeros(k, dtype="float32"),
+        }
+        m = {key: np.zeros_like(val) for key, val in p.items()}
+        v = {key: np.zeros_like(val) for key, val in p.items()}
+        Y = np.eye(k, dtype="float32")[y]
+        beta1, beta2, eps = 0.9, 0.999, 1e-8
+
+        for t in range(1, epochs + 1):
+            # forward pass
+            z1 = X @ p["W1"] + p["b1"]
+            a1 = np.maximum(0, z1)
+            z2 = a1 @ p["W2"] + p["b2"]
+            z2 -= z2.max(axis=1, keepdims=True)
+            e = np.exp(z2)
+            probs = e / e.sum(axis=1, keepdims=True)
+
+            # backward pass
+            dz2 = (probs - Y) / n
+            grads = {
+                "W2": a1.T @ dz2,
+                "b2": dz2.sum(axis=0),
+            }
+            da1 = dz2 @ p["W2"].T
+            dz1 = da1 * (z1 > 0)
+            grads["W1"] = X.T @ dz1
+            grads["b1"] = dz1.sum(axis=0)
+
+            # Adam update
+            for key in p:
+                m[key] = beta1 * m[key] + (1 - beta1) * grads[key]
+                v[key] = beta2 * v[key] + (1 - beta2) * (grads[key] ** 2)
+                m_hat = m[key] / (1 - beta1 ** t)
+                v_hat = v[key] / (1 - beta2 ** t)
+                p[key] -= lr * m_hat / (np.sqrt(v_hat) + eps)
+
+        return p
+
+    def _predict(self, vec):
+        p = self.params
+        a1 = np.maximum(0, vec @ p["W1"] + p["b1"])
+        z2 = a1 @ p["W2"] + p["b2"]
+        z2 -= z2.max(axis=1, keepdims=True)
+        e = np.exp(z2)
+        return (e / e.sum(axis=1, keepdims=True))[0]
 
     # ---------- Understanding user input ----------
     def _match_terms(self, raw):
@@ -121,7 +154,7 @@ class CareerRecommender:
         vec = np.zeros((1, len(self.vocab)), dtype="float32")
         for t in user_terms:
             vec[0, self.index[t]] = 1.0
-        probs = self.model.predict(vec, verbose=0)[0]
+        probs = self._predict(vec)
 
         results = []
         for i, row in enumerate(self.records):
