@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}My Progress · CareerPath AI{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/progress.css') }}">
+
+<section class="dash-hero">
+  <div class="container dash-hero-inner">
+    <div>
+      <p class="eyebrow">Your journey</p>
+      <h1>Your learning progress 📈</h1>
+      <p class="sub">Tick off each step as you complete it and watch your progress grow, one step at a time.</p>
+    </div>
+    <div class="stats">
+      <div class="stat"><b id="p-tracked">0</b><span>Paths tracking</span></div>
+      <div class="stat"><b id="p-done">0</b><span>Steps completed</span></div>
+      <div class="stat"><b id="p-overall">0%</b><span>Overall progress</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="container prog-wrap">
+  <div id="progress-list">
+    <div class="loading"><div class="spinner"></div>Loading your progress...</div>
+  </div>
+</section>
+
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/progress.js') }}"></script>
+{% endblock %}

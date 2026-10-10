@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · CareerPath AI{% endblock %}
+{% block content %}
+
+<section class="dash-hero">
+  <div class="container dash-hero-inner">
+    <div>
+      <p class="eyebrow">Your dashboard</p>
+      <h1>Welcome back, {{ current_user.name.split()[0] }} 👋</h1>
+      <p class="sub">Add your skills and interests, and our AI will match you with careers and build your learning path.</p>
+    </div>
+    <div class="stats">
+      <div class="stat"><b id="stat-skills">0</b><span>Skills added</span></div>
+      <div class="stat"><b id="stat-tracked">0</b><span>Paths tracking</span></div>
+      <div class="stat"><b id="stat-progress">0%</b><span>Avg. progress</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="container dash-grid">
+  <div class="dash-main">
+
+    <div class="card form-card fade-up">
+      <div class="card-title">
+        <span class="icon-sm">🧠</span>
+        <div>
+          <h2>Build your profile</h2>
+          <p class="muted small">Type a skill and press Enter, or tap a suggestion below.</p>
+        </div>
+      </div>
+
+      <form id="recommend-form" novalidate>
+        <div class="field">
+          <label for="skills-input">Your skills</label>
+          <div class="tags-input" id="skills-box">
+            <input id="skills-input" type="text" placeholder="e.g. python, sql, pandas..." autocomplete="off">
+          </div>
+          <div class="suggest" id="skills-suggest"></div>
+        </div>
+
+        <div class="field">
+          <label for="interests-input">Your interests</label>
+          <div class="tags-input" id="interests-box">
+            <input id="interests-input" type="text" placeholder="e.g. numbers, creativity, ai..." autocomplete="off">
+          </div>
+          <div class="suggest" id="interests-suggest"></div>
+        </div>
+
+        <button id="submit-btn" type="submit" class="btn btn-primary btn-lg">✨ Get my recommendations</button>
+      </form>
+    </div>
+
+    <div id="results">
+      <div class="placeholder fade-up">
+        <div class="big">🔍</div>
+        <h3>Your matches will appear here</h3>
+        <p class="muted">Add a few skills above and click the button to see your top careers, learning paths, and personal advice.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <aside class="dash-side">
+    <div class="card side-card fade-up">
+      <div class="side-head">
+        <h3>🗺️ Your tracked paths</h3>
+        <a href="{{ url_for('progress') }}" class="link-sm">View all →</a>
+      </div>
+      <div id="side-paths"><p class="muted small">Loading...</p></div>
+    </div>
+
+    <div class="card side-card tips fade-up">
+      <h3>💡 Tips for better matches</h3>
+      <ul>
+        <li>Add <b>5 or more skills</b> for sharper results.</li>
+        <li>Mix <b>technical skills</b> with <b>interests</b>.</li>
+        <li>Use the suggestions to match our vocabulary.</li>
+        <li>Track a path, then tick steps as you learn.</li>
+      </ul>
+    </div>
+  </aside>
+</section>
+
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

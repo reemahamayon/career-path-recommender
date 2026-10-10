@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}CareerPath AI · Find your career path{% endblock %}
+{% block content %}
+
+<section class="hero">
+  <div class="container hero-inner">
+    <div class="hero-text">
+      <span class="badge">✨ Free for every intern</span>
+      <h1>Find the career path that fits <span class="grad">you</span></h1>
+      <p class="lead">Share your skills and interests. Our AI matches you with the right roles, builds your learning path, and tracks your progress along the way.</p>
+      <div class="hero-actions">
+        {% if current_user.is_authenticated %}
+          <a href="{{ url_for('dashboard') }}" class="btn btn-primary btn-lg">Go to dashboard →</a>
+        {% else %}
+          <a href="{{ url_for('signup') }}" class="btn btn-primary btn-lg">Get started free →</a>
+          <a href="{{ url_for('login') }}" class="btn btn-outline btn-lg">Log in</a>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="hero-visual">
+      <div class="card demo-card">
+        <div class="demo-top">
+          <div>
+            <p class="muted small">Top match</p>
+            <h3>Data Analyst</h3>
+          </div>
+          <div class="ring" style="--p:87"><span>87%</span></div>
+        </div>
+        <div class="chips">
+          <span class="chip chip-have">python</span>
+          <span class="chip chip-have">sql</span>
+          <span class="chip chip-have">pandas</span>
+          <span class="chip chip-learn">excel</span>
+        </div>
+        <div class="bar"><div class="bar-fill" style="width:60%"></div></div>
+        <p class="muted small">Learning path · 3 of 5 steps done</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="container section">
+  <div class="section-head">
+    <h2>Everything you need to plan your career</h2>
+    <p class="muted">One place to discover roles, learn what's missing, and stay on track.</p>
+  </div>
+  <div class="grid-4">
+    <div class="card feature"><div class="icon">🎯</div><h3>Smart matching</h3><p>A TensorFlow model compares your profile with real tech roles and ranks the best fits.</p></div>
+    <div class="card feature"><div class="icon">💬</div><h3>Personal AI advice</h3><p>Get short, friendly guidance written just for you, with a clear next step.</p></div>
+    <div class="card feature"><div class="icon">🗺️</div><h3>Learning paths</h3><p>See exactly which skills you have and which ones to learn, in the right order.</p></div>
+    <div class="card feature"><div class="icon">📈</div><h3>Progress tracking</h3><p>Tick off steps as you go and watch your progress bar grow over time.</p></div>
+  </div>
+</section>
+
+<section class="container section">
+  <div class="section-head">
+    <h2>How it works</h2>
+  </div>
+  <div class="grid-3">
+    <div class="card step-card"><span class="num">1</span><h3>Create your account</h3><p>Sign up in seconds. It's free and your data stays yours.</p></div>
+    <div class="card step-card"><span class="num">2</span><h3>Share your profile</h3><p>Enter your skills and interests, separated by commas.</p></div>
+    <div class="card step-card"><span class="num">3</span><h3>Follow your path</h3><p>Pick a career, track your learning steps, and grow.</p></div>
+  </div>
+</section>
+
+<section class="container section">
+  <div class="cta-band">
+    <h2>Ready to discover your path?</h2>
+    <p>Join now and get your first recommendations in under a minute.</p>
+    <a href="{{ url_for('signup') if not current_user.is_authenticated else url_for('dashboard') }}" class="btn btn-light btn-lg">Start now →</a>
+  </div>
+</section>
+
+{% endblock %}
